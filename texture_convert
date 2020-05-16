@@ -1,0 +1,97 @@
+#!/usr/bin/python
+
+from PIL import Image
+import struct
+
+import argparse
+import os
+
+parser = argparse.ArgumentParser(description='Convert texture to binary.')
+parser.add_argument(
+	'-i', '--input',
+	metavar='input_filename',
+	type=str,
+	nargs=1,
+	required=True,
+	help='Filename of the image to convert.',
+)
+parser.add_argument(
+	'-o', '--output',
+	metavar='output_filename',
+	type=str,
+	nargs=1,
+	required=True,
+	help='Filename for the output image.',
+)
+parser.add_argument(
+	'-f', '--flip-y',
+	dest='flip_y',
+	action='store_true',
+)
+parser.add_argument(
+	'-n', '--name',
+	metavar='name',
+	type=str,
+	nargs=1,
+	required=True,
+	help='Pascal_Case name for header file.',
+)
+parser.set_defaults(flip_y=False)
+
+args = parser.parse_args()
+in_filename = args.input[0]
+out_filename = args.output[0]
+flip_y = args.flip_y
+name = args.name[0]
+
+img = Image.open(in_filename, 'r')
+
+width, height = img.width, img.height
+
+# TODO -- options for different colour spaces - currently just doing 1 bit textures
+
+data = []
+for y in range(height):
+	if flip_y:
+		y = height - y - 1
+	for x in range(width):
+		r, _g, _b, _a = img.getpixel((x, y))
+		val = '0xFF' if r else '0x00'
+		data.append(val)
+
+output_template = '''
+#ifndef TEXTURE_{texture_name_upper}_H
+#define TEXTURE_{texture_name_upper}_H
+
+#include "jfg/prelude.h"
+
+struct Texture_{texture_name_pascal}
+{{
+	u32 width, height;
+	u8 data[{data_length}];
+}};
+
+extern const Texture_{texture_name_pascal} TEXTURE_{texture_name_upper};
+
+#ifndef JFG_HEADER_ONLY
+const Texture_{texture_name_pascal} TEXTURE_{texture_name_upper} = {{
+	{width},
+	{height},
+	{{ {data} }}
+}};
+#endif
+
+#endif
+'''.strip()
+
+output = output_template.format(
+	texture_name_upper=name.upper(),
+	texture_name_pascal=name,
+	data_length=width * height,
+	width=width,
+	height=height,
+	data=', '.join(data),
+)
+
+with open(out_filename, 'w') as outfile:
+	outfile.write(output)
