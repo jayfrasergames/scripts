@@ -24,6 +24,28 @@ parser.add_argument(
 	help='Filename for the output image.',
 )
 parser.add_argument(
+	'-t', '--type',
+	metavar='type',
+	type=str,
+	nargs=1,
+	required=True,
+	help='Type of output to create. e.g. Tile_Render_Texture',
+)
+parser.add_argument(
+	'--tile-width',
+	metavar='tile_width',
+	type=str,
+	nargs=1,
+	required=False,
+)
+parser.add_argument(
+	'--tile-height',
+	metavar='tile_height',
+	type=str,
+	nargs=1,
+	required=False,
+)
+parser.add_argument(
 	'-f', '--flip-y',
 	dest='flip_y',
 	action='store_true',
@@ -43,6 +65,9 @@ in_filename = args.input[0]
 out_filename = args.output[0]
 flip_y = args.flip_y
 name = args.name[0]
+type = args.type[0]
+tile_width = args.tile_width[0]
+tile_height = args.tile_height[0]
 
 img = Image.open(in_filename, 'r')
 
@@ -55,9 +80,14 @@ for y in range(height):
 	if flip_y:
 		y = height - y - 1
 	for x in range(width):
-		r, _g, _b, _a = img.getpixel((x, y))
-		val = '0xFF' if r else '0x00'
+		r, g, b, a = img.getpixel((x, y))
+		if type == 'Tile_Render_Texture':
+			val = '0x{:02X}{:02X}{:02X}{:02X}'.format(a, b, g, r)
+		else:
+			r, _g, _b, _a = img.getpixel((x, y))
+			val = '0xFF' if r else '0x00'
 		data.append(val)
+
 
 output_template = '''
 #ifndef TEXTURE_{texture_name_upper}_H
@@ -84,6 +114,38 @@ const Texture_{texture_name_pascal} TEXTURE_{texture_name_upper} = {{
 #endif
 '''.strip()
 
+tile_render_texture_template = '''
+#ifndef TILE_RENDER_TEXTURE_{texture_name_upper}_H
+#define TILE_RENDER_TEXTURE_{texture_name_upper}_H
+
+#include "jfg/prelude.h"
+#include "tile_render.h"
+
+struct Texture_{texture_name_pascal}
+{{
+	Tile_Render_Texture header;
+	u32 data[{data_length}];
+}};
+
+extern const Texture_{texture_name_pascal} TEXTURE_{texture_name_upper};
+
+#ifndef JFG_HEADER_ONLY
+const Texture_{texture_name_pascal} TEXTURE_{texture_name_upper} = {{
+	{{
+		{{ {width}, {height} }},
+		{{ {tile_width}, {tile_height} }},
+		(void*)TEXTURE_{texture_name_upper}.data
+	}},
+	{{ {data} }}
+}};
+#endif
+
+#endif
+'''.strip()
+
+if type == 'Tile_Render_Texture':
+	output_template = tile_render_texture_template
+
 output = output_template.format(
 	texture_name_upper=name.upper(),
 	texture_name_pascal=name,
@@ -91,6 +153,8 @@ output = output_template.format(
 	width=width,
 	height=height,
 	data=', '.join(data),
+	tile_width=tile_width,
+	tile_height=tile_height,
 )
 
 with open(out_filename, 'w') as outfile:
