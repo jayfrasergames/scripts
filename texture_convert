@@ -81,7 +81,7 @@ for y in range(height):
 		y = height - y - 1
 	for x in range(width):
 		r, g, b, a = img.getpixel((x, y))
-		if type == 'Tile_Render_Texture':
+		if type == 'Tile_Render_Texture' or type == 'Sprite_Render_Texture':
 			val = '0x{:02X}{:02X}{:02X}{:02X}'.format(a, b, g, r)
 		else:
 			r, _g, _b, _a = img.getpixel((x, y))
@@ -143,8 +143,39 @@ const Texture_{texture_name_pascal} TEXTURE_{texture_name_upper} = {{
 #endif
 '''.strip()
 
-if type == 'Tile_Render_Texture':
+sprite_render_texture_template = '''
+#ifndef SPRITE_RENDER_TEXTURE_{texture_name_upper}_H
+#define SPRITE_RENDER_TEXTURE_{texture_name_upper}_H
+
+#include "jfg/prelude.h"
+#include "sprite_render.h"
+
+struct Texture_{texture_name_pascal}
+{{
+	Sprite_Render_Texture header;
+	u32 data[{data_length}];
+}};
+
+extern const Texture_{texture_name_pascal} TEXTURE_{texture_name_upper};
+
+#ifndef JFG_HEADER_ONLY
+const Texture_{texture_name_pascal} TEXTURE_{texture_name_upper} = {{
+	{{
+		{{ {width}, {height} }},
+		{{ {tile_width}, {tile_height} }},
+		(void*)TEXTURE_{texture_name_upper}.data
+	}},
+	{{ {data} }}
+}};
+#endif
+
+#endif
+'''.strip()
+
+if   type == 'Tile_Render_Texture':
 	output_template = tile_render_texture_template
+elif type == 'Sprite_Render_Texture':
+	output_template = sprite_render_texture_template
 
 output = output_template.format(
 	texture_name_upper=name.upper(),
