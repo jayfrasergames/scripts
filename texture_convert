@@ -83,11 +83,23 @@ for y in range(height):
 		r, g, b, a = img.getpixel((x, y))
 		if type == 'Tile_Render_Texture' or type == 'Sprite_Render_Texture':
 			val = '0x{:02X}{:02X}{:02X}{:02X}'.format(a, b, g, r)
+		elif type == 'Mouse_Map':
+			val = 1 if a else 0
 		else:
 			r, _g, _b, _a = img.getpixel((x, y))
 			val = '0xFF' if r else '0x00'
 		data.append(val)
 
+if type == 'Mouse_Map':
+	data.extend([0] * ((- (width * height)) % 8))
+	new_data = []
+	for n in range(0, len(data), 8):
+		this_byte = data[n:n+8]
+		acc = 0
+		for i in range(8):
+			acc += this_byte[i] * (1 << i)
+		new_data.append(acc)
+	data = ['0x{:02X}'.format(s) for s in new_data]
 
 output_template = '''
 #ifndef TEXTURE_{texture_name_upper}_H
@@ -172,10 +184,41 @@ const Texture_{texture_name_pascal} TEXTURE_{texture_name_upper} = {{
 #endif
 '''.strip()
 
+mouse_map_template = '''
+#ifndef MOUSE_MAP_{texture_name_upper}_H
+#define MOUSE_MAP_{texture_name_upper}_H
+
+#include "jfg/prelude.h"
+#include "mouse_map.h"
+
+struct Mouse_Map_{texture_name_pascal}
+{{
+	Mouse_Map_Header header;
+	u8 data[{data_length}];
+}};
+
+extern const Mouse_Map_{texture_name_pascal} MOUSE_MAP_{texture_name_upper};
+
+#ifndef JFG_HEADER_ONLY
+const Mouse_Map_{texture_name_pascal} MOUSE_MAP_{texture_name_upper} = {{
+	{{
+		{{ {width}, {height} }},
+		{{ {tile_width}, {tile_height} }},
+		(u8*)MOUSE_MAP_{texture_name_upper}.data
+	}},
+	{{ {data} }}
+}};
+#endif
+
+#endif
+'''.strip()
+
 if   type == 'Tile_Render_Texture':
 	output_template = tile_render_texture_template
 elif type == 'Sprite_Render_Texture':
 	output_template = sprite_render_texture_template
+elif type == 'Mouse_Map':
+	output_template = mouse_map_template
 
 output = output_template.format(
 	texture_name_upper=name.upper(),
