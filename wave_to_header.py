@@ -42,28 +42,19 @@ wave_header_template = '''
 #define {name_upper}_H
 
 #include "jfg/prelude.h"
+#include "assets.h"
 
-struct {name_pascal}_Header
-{{
-	u8   num_channels;
-	u8   sample_width;
-	u32  sample_rate;
-	u32  num_samples;
-	u8  *data;
-}};
-
-extern {name_pascal}_Header {name_upper}_HEADER;
+extern Sound_Header {name_upper}_HEADER;
 
 extern u8 {name_upper}_DATA[{data_length}];
 
 
 #ifndef JFG_HEADER_ONLY
-{name_pascal}_Header {name_upper}_HEADER = {{
+Sound_Header {name_upper}_HEADER = {{
 	{num_channels},
 	{sample_width},
 	{sample_rate},
-	{num_samples},
-	{name_upper}_DATA
+	{num_samples}
 }};
 
 u8 {name_upper}_DATA [{data_length}] = {{
