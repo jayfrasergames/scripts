@@ -32,9 +32,9 @@ with open(in_filename) as f:
 	contents = f.read()
 
 template = '''
-extern unsigned char {name}[] = {{ {contents} }};
+unsigned char {name}[] = {{ {contents} }};
 
-extern unsigned int {name}_len = {len};
+unsigned int {name}_len = {len};
 '''
 
 print(template.format(
